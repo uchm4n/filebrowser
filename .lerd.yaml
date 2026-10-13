@@ -1,8 +1,0 @@
-domains:
-  - filebrowser
-node_version: "22"
-js_runtime: bun
-secured: true
-proxy:
-  command: npm run dev
-  port: 5173

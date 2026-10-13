@@ -2,9 +2,9 @@ import { fileURLToPath } from 'node:url'
 import { mergeConfig, defineConfig, configDefaults } from 'vitest/config'
 import viteConfig from './vite.config.ts'
 
-export default mergeConfig(
-  viteConfig,
-  defineConfig({
+// vite.config.ts is async (it mints a media token), so it must be awaited.
+export default defineConfig(async (env) =>
+  mergeConfig(await viteConfig(env), {
     test: {
       environment: 'jsdom',
       exclude: [...configDefaults.exclude, 'e2e/**'],
