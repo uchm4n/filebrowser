@@ -23,15 +23,11 @@ own.
 
 ```sh
 npm install
-# or
-bun install
 ```
 
 
 ```sh
 npm run dev
-# or
-bun run dev
 ```
 
 
