@@ -17,7 +17,7 @@ own.
 
 
 ### Requirements
-- A reachable **FileBrowser Quantum** backend, and credentials for it
+- A reachable [FileBrowser Quantum](https://filebrowserquantum.com/en/) backend, and credentials for it
 
 ### Install
 
