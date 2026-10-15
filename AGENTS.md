@@ -71,9 +71,12 @@ src/
 1. **`api/*` never imports from `stores/*`.** `client.ts` takes a token as a
    parameter and signals expiry through `onSessionExpired()`. Breaking this
    creates a cycle: `client → stores/auth → api/auth → client`.
-2. **`components/files/*` never import a store or call fetch.** They take props
-   and emit events. That is what makes them reusable and testable.
-3. **Views own the stores.** Components stay dumb.
+2. **`components/files/*` read Pinia stores; they never call `fetch`.** They are
+   not prop-only — a store read inside a component is the intended shape, so do
+   not "fix" one back into props. Fetching stays in `api/*`; that separation is
+   what keeps the components testable.
+3. **Views orchestrate.** A view composes stores and decides what happens on an
+   event. Components render and may read a store, but never sequence calls.
 4. **`api/*` are plain async functions, not classes or repositories.** One
    implementation each; a repository interface would be ceremony.
 
@@ -273,6 +276,26 @@ VITE_DEV_PASSWORD=...
 No `VITE_API_BASE_URL`. The SPA always uses relative `/api/*`; the host appears
 exactly once, in `vite.config.ts`.
 
+### Browser storage
+
+Keys are namespaced `filebrowser.*` and all persist through `useStorage` from
+`@vueuse/core`:
+
+```
+filebrowser.token     JWT, cleared on logout
+filebrowser.theme     'light' | 'dark' | 'auto'
+filebrowser.recent    Entry[]           newest first, capped at 50
+filebrowser.starred   Record<path, Entry>
+```
+
+- ✅ `useStorage`'s `eventFilter` applies to the **write watcher only**. Pass
+  `debounceFilter(200)` to collapse a burst of `setItem` calls while the ref
+  stays instant for the UI. No wrapper of our own.
+- ⚠️ **Never persist a `viewToken`.** Its lifetime is unknown, so a stored one
+  401s later. Recents and stars store paths; opening one re-reads its parent
+  directory for a fresh node.
+- `localStorage` is not a secret store. Nothing secret goes here.
+
 ---
 
 ## Todos
@@ -324,7 +347,8 @@ and `FilesView.vue` have no unit tests covering them.
 
 ## Reference
 
-- Design doc: `docs/superpowers/specs/2026-10-13-filebrowser-design.md`
+- Design docs: `docs/superpowers/specs/`. **`docs` is gitignored** — the specs
+  are private and must never be force-added or published.
 - Live swagger (token-gated): `https://files.nuc.ge/swagger/doc.json`
 - Obtain a token:
   ```sh
