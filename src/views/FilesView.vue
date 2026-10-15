@@ -31,7 +31,7 @@ const greeting = computed(() => (resources.username ? `Signed in as ${resources.
 const heading = computed(() => {
   if (props.collection === 'recent') return 'Recent'
   if (props.collection === 'starred') return 'Starred'
-  return resources.source ?? 'Files'
+  return 'Files'
 })
 
 const entries = computed(() =>
