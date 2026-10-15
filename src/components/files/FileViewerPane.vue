@@ -39,7 +39,7 @@ const plugins = [
   videoPlugin({ controlsList: 'nodownload' }),
   audioPlugin(),
   epubPlugin(),
-  pdfPlugin({ workerSrc: sameOriginPath(pdfWorkerSrc) }),
+  pdfPlugin({ workerSrc: `${sameOriginPath(pdfWorkerSrc)}?v=2` }),
   officePlugin(),
   imagePlugin(),
   // archivePlugin(),
