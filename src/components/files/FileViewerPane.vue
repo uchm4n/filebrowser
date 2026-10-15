@@ -11,9 +11,10 @@ import {
 } from '@open-file-viewer/core'
 import { OpenFileViewer } from '@open-file-viewer/vue'
 import pdfWorkerSrc from 'pdfjs-dist/build/pdf.worker.mjs?url'
-
+import type { PreviewToolbarOptions } from '@open-file-viewer/core'
 import { sameOriginPath } from '@/lib/worker-url'
 import '@open-file-viewer/core/style.css'
+import {computed} from "vue";
 
 /**
  * Wrapper so the CSS import, the plugin list and the pdf.js worker URL live
@@ -29,12 +30,6 @@ import '@open-file-viewer/core/style.css'
  * WASM packages (`@mlightcad/*`) and this account has no such files. Without
  * them those formats fall through to the download fallback.
  */
-defineProps<{
-  src: string
-  fileName: string
-  mimeType: string
-}>()
-
 const plugins = [
   videoPlugin({ controlsList: 'nodownload' }),
   audioPlugin(),
@@ -45,17 +40,32 @@ const plugins = [
   // archivePlugin(),
   textPlugin(),
 ]
+
+const props = defineProps<{ src: string; fileName: string; mimeType: string }>()
+const extension = (name: string) => name.split('.').pop()?.toLowerCase() ?? ''
+
+/** Native <video>/<audio> controls: no zoom, so no toolbar. */
+const MEDIA = new Set(['mp4', 'm4v', 'mov', 'mkv', 'avi', 'webm', 'ogv', 'mp3', 'm4a', 'wav', 'flac', 'ogg', 'aac', 'opus',])
+
+const toolbar = computed<PreviewToolbarOptions | false>(() => {
+  const ext = extension(props.fileName)
+  if (MEDIA.has(ext) || props.mimeType.startsWith('video/') || props.mimeType.startsWith('audio/'))
+    return false
+  // Rotate is a per-plugin command; everything else zooms.
+  const rotate = ext === 'pdf' || props.mimeType.startsWith('image/')
+  return { zoom: true, rotate, fullscreen: true, download: true }
+})
 </script>
 
 <template>
   <OpenFileViewer
+    :toolbar="toolbar"
     :file="src"
     :file-name="fileName"
     :mime-type="mimeType"
     width="100%"
     height="100%"
     fit="contain"
-    :toolbar="false"
     theme="auto"
     fallback="download"
     :plugins="plugins"
