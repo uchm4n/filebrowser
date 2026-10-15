@@ -43,7 +43,7 @@ async function submit() {
     <Card class="w-full max-w-sm">
       <CardHeader>
         <CardTitle class="text-xl">Sign in</CardTitle>
-        <CardDescription>Use your FileBrowser account.</CardDescription>
+        <CardDescription>Use your account credentials</CardDescription>
       </CardHeader>
 
       <CardContent>
