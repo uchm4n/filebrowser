@@ -25,7 +25,7 @@ npm run build-only         # vite build, skips type-check and secret scan
 npm run type-check         # vue-tsc
 npm run lint               # oxlint then eslint
 npm run format             # oxfmt
-npm run test:unit          # vitest (32 tests)
+npm run test:unit          # vitest (75 tests)
 npm run verify:no-secrets  # fail if any .env value reached dist/
 ```
 
@@ -284,6 +284,7 @@ Keys are namespaced `filebrowser.*` and all persist through `useStorage` from
 ```
 filebrowser.token     JWT, cleared on logout
 filebrowser.theme     'light' | 'dark' | 'auto'
+filebrowser.collapsed boolean  desktop sidebar rail state
 filebrowser.recent    Entry[]           newest first, capped at 50
 filebrowser.starred   Record<path, Entry>
 ```
@@ -291,6 +292,9 @@ filebrowser.starred   Record<path, Entry>
 - ✅ `useStorage`'s `eventFilter` applies to the **write watcher only**. Pass
   `debounceFilter(200)` to collapse a burst of `setItem` calls while the ref
   stays instant for the UI. No wrapper of our own.
+- ⚠️ A `string` value is stored **bare, not as JSON** — `useStorage` writes
+  `dark`, not `"dark"`. The inline theme script in `index.html` reads that key
+  before the bundle loads; `JSON.parse` on it throws and blanks the page.
 - ⚠️ **Never persist a `viewToken`.** Its lifetime is unknown, so a stored one
   401s later. Recents and stars store paths; opening one re-reads its parent
   directory for a fresh node.
@@ -328,7 +332,7 @@ thumbnail previews (`/api/resources/preview` exists), offline support.
 
 ## Testing
 
-32 tests, no e2e. Conventions:
+75 tests, no e2e. Conventions:
 
 - Store tests mock `api/*` with `vi.mock` and set `useAuthStore().token`
   directly — stubbing `login()` does **not** set the token.

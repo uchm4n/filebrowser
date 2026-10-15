@@ -21,6 +21,23 @@ const router = createRouter({
           name: 'files',
           component: () => import('@/views/FilesView.vue'),
         },
+        {
+          path: 'recent',
+          name: 'recent',
+          component: () => import('@/views/FilesView.vue'),
+          props: { collection: 'recent' },
+        },
+        {
+          path: 'starred',
+          name: 'starred',
+          component: () => import('@/views/FilesView.vue'),
+          props: { collection: 'starred' },
+        },
+        {
+          path: 'settings',
+          name: 'settings',
+          component: () => import('@/views/SettingsView.vue'),
+        },
       ],
     },
     { path: '/:pathMatch(.*)*', redirect: '/' },

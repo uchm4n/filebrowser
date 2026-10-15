@@ -107,11 +107,48 @@ export const useResourcesStore = defineStore('resources', () => {
 
   const tree = computed(() => buildNodes(ROOT))
 
-  async function toggle(path: string) {
-    const open = !expanded.value[path]
-    expanded.value[path] = open
+  async function expand(path: string) {
+    if (expanded.value[path]) return
+    expanded.value[path] = true
     // Fetch on first open only; collapsing and reopening must not refetch.
-    if (open && directories.value[path]?.status !== 'loaded') await load(path)
+    if (directories.value[path]?.status !== 'loaded') await load(path)
+  }
+
+  async function toggle(path: string) {
+    if (!expanded.value[path]) return expand(path)
+    expanded.value[path] = false
+  }
+
+  /** Every folder containing `path`, outermost first. */
+  function ancestorsOf(path: string) {
+    const out: string[] = []
+    let acc = '/'
+    // Drop the leading '' and the trailing name, keeping each folder's '/'.
+    for (const part of path.split('/').slice(1, -1)) out.push((acc += `${part}/`))
+    return out
+  }
+
+  /**
+   * Selects a node by path for recents and starred entries. Stored entries hold
+   * no viewToken — its lifetime is unknown — so the node is taken from the
+   * freshly loaded parent directory instead of from storage.
+   *
+   * Paths are child-node paths, which carry no trailing slash even for folders:
+   * the slash belongs to the listing's own `FileInfo.path`.
+   */
+  async function openPath(path: string) {
+    for (const ancestor of ancestorsOf(path)) await expand(ancestor)
+
+    const dir = path.slice(0, path.lastIndexOf('/') + 1) || '/'
+    if (directories.value[dir]?.status !== 'loaded') await load(dir)
+
+    const node = directories.value[dir]?.entries.find((e) => e.path === path)
+    if (!node) {
+      const error = directories.value[dir]?.error ?? 'That file is no longer here.'
+      return { ok: false as const, error }
+    }
+    select(node)
+    return { ok: true as const }
   }
 
   async function init() {
@@ -150,6 +187,8 @@ export const useResourcesStore = defineStore('resources', () => {
     selected,
     init,
     toggle,
+    expand,
+    openPath,
     select,
     clearSelection,
     load,

@@ -3,8 +3,9 @@ import type { TreeNode } from '@/stores/resources'
 import FileTreeItem from './FileTreeItem.vue'
 
 /**
- * Presentational only: takes nodes, emits intent. No store import, no fetching,
- * so this can be dropped into any page with any data source.
+ * Renders nodes and emits intent. Reads Pinia stores for star and selection
+ * state — that is deliberate, these components live only inside this app. It
+ * never fetches: everything arrives as nodes.
  */
 defineProps<{
   nodes: TreeNode[]

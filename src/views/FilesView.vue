@@ -1,24 +1,48 @@
 <script setup lang="ts">
-import { computed, defineAsyncComponent, onMounted } from 'vue'
+import { computed, defineAsyncComponent, onMounted, ref } from 'vue'
 import { AlertCircle, ChevronLeft, FileQuestion } from '@lucide/vue'
+import { useRouter } from 'vue-router'
 import FileTree from '@/components/files/FileTree.vue'
+import FileList from '@/components/files/FileList.vue'
 import { previewUrl } from '@/api/media'
 import { Button } from '@/components/ui/button'
 import { useIsMobile } from '@/lib/use-is-mobile'
 import { useAuthStore } from '@/stores/auth'
+import { useLibraryStore } from '@/stores/library'
+import type { Entry } from '@/stores/library'
+import type { TreeNode } from '@/stores/resources'
 import { useResourcesStore } from '@/stores/resources'
 
 // Loaded only when a file is actually previewed, so the viewer and its
 // stylesheet never weigh down the initial bundle.
 const FileViewerPane = defineAsyncComponent(() => import('@/components/files/FileViewerPane.vue'))
-
+const props = defineProps<{ collection?: 'recent' | 'starred' }>()
 const auth = useAuthStore()
+const library = useLibraryStore()
 const resources = useResourcesStore()
+const router = useRouter()
 const isMobile = useIsMobile()
+const openError = ref<string | null>(null)
 
 onMounted(() => resources.init())
 
 const greeting = computed(() => (resources.username ? `Signed in as ${resources.username}` : ''))
+
+const heading = computed(() => {
+  if (props.collection === 'recent') return 'Recent'
+  if (props.collection === 'starred') return 'Starred'
+  return resources.source ?? 'Files'
+})
+
+const entries = computed(() =>
+  props.collection === 'recent' ? library.recent : library.starredList,
+)
+
+const emptyText = computed(() =>
+  props.collection === 'starred'
+    ? 'Star a file and it shows up here.'
+    : 'Open a file and it shows up here.',
+)
 
 const selected = computed(() => {
   const node = resources.selected
@@ -27,8 +51,25 @@ const selected = computed(() => {
   return { node, src: previewUrl(node, resources.source) }
 })
 
-function onToggle(node: { path: string }) {
+function onToggle(node: TreeNode) {
   resources.toggle(node.path)
+}
+
+function onSelect(node: TreeNode) {
+  resources.select(node)
+  library.touch(node)
+}
+
+async function onOpenEntry(entry: Entry) {
+  openError.value = null
+  const result = await resources.openPath(entry.path)
+  if (!result.ok) {
+    openError.value = result.error
+    return
+  }
+  // A folder has no preview, and this screen has no tree to reveal it in, so
+  // take the user where the tree is. A file previews here and stays put.
+  if (entry.kind === 'folder' && props.collection) await router.push('/')
 }
 
 // Below `md` the two panes take turns in the viewport instead of sitting side
@@ -44,7 +85,7 @@ const showViewer = computed(() => !isMobile.value || Boolean(selected.value))
     <!-- Tree -->
     <div class="min-w-0 flex-1 flex-col border-r" :class="showTree ? 'flex' : 'hidden'">
       <div class="border-border flex h-12 shrink-0 items-center justify-between border-b px-4">
-        <h1 class="text-sm font-medium">{{ resources.source ?? 'Files' }}</h1>
+        <h1 class="text-sm font-medium">{{ heading }}</h1>
         <span class="text-muted-foreground text-xs">{{ greeting }}</span>
       </div>
 
@@ -62,13 +103,27 @@ const showViewer = computed(() => !isMobile.value || Boolean(selected.value))
         </p>
 
         <p
-          v-else-if="resources.tree.length === 0 && resources.source"
-          class="text-muted-foreground p-4 text-sm"
+          v-else-if="openError"
+          class="text-destructive flex items-center gap-2 p-4 text-sm"
         >
-          This folder is empty.
+          <AlertCircle class="size-4 shrink-0" />
+          {{ openError }}
         </p>
 
-        <FileTree v-else :nodes="resources.tree" @toggle="onToggle" @select="resources.select" />
+        <!-- Collections are plain lists, so they never show a per-directory
+             error the way the tree does; openError carries the failure instead. -->
+        <template v-else-if="!collection">
+          <p
+            v-if="resources.tree.length === 0 && resources.source"
+            class="text-muted-foreground p-4 text-sm"
+          >
+            This folder is empty.
+          </p>
+
+          <FileTree v-else :nodes="resources.tree" @toggle="onToggle" @select="onSelect" />
+        </template>
+
+        <FileList v-else :entries="entries" :empty-text="emptyText" @open="onOpenEntry" />
       </div>
     </div>
 

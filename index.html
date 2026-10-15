@@ -5,6 +5,12 @@
     <link rel="icon" href="/favicon.svg" type="image/svg+xml">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>FileBrowser UI</title>
+    <script>
+      const mode = localStorage.getItem('filebrowser.theme') ?? 'auto'
+      const dark = mode === 'dark' ||
+        (mode === 'auto' && matchMedia('(prefers-color-scheme: dark)').matches)
+      if (dark) document.documentElement.classList.add('dark')
+    </script>
   </head>
   <body>
     <div id="app"></div>

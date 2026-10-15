@@ -160,4 +160,121 @@ describe('resources store', () => {
     expect(node?.status).toBe('error')
     expect(node?.error).toBe('Forbidden (access denied)')
   })
+
+  it('opens a cached root entry without another request', async () => {
+    listDirectory.mockResolvedValue(info({ files: [entry('deep.pdf')], folders: [] }))
+    const store = useResourcesStore()
+    await store.init()
+    expect(listDirectory).toHaveBeenCalledTimes(1)
+
+    const result = await store.openPath('/deep.pdf')
+
+    expect(result).toEqual({ ok: true })
+    expect(store.selected?.name).toBe('deep.pdf')
+    expect(listDirectory).toHaveBeenCalledTimes(1)
+  })
+
+  // A preview URL built from a stored entry alone carries no viewToken and the
+  // API answers 401, so the node must come from the freshly loaded directory.
+  it('selects the freshly loaded node so the preview has a viewToken', async () => {
+    listDirectory.mockImplementation(async (path: string) =>
+      path === '/'
+        ? info({ path: '/', folders: [entry('Books', { type: 'directory' })], files: [] })
+        : info({ path: '/Books/', name: 'Books', files: [entry('deep.pdf', { viewToken: 'vt-1' })] }),
+    )
+    const store = useResourcesStore()
+    await store.init()
+
+    await store.openPath('/Books/deep.pdf')
+
+    expect(store.selected?.viewToken).toBe('vt-1')
+  })
+
+  // lastIndexOf('/') is 0 for a root-level file, so the slice is '/', not ''.
+  it('resolves the parent of a root-level entry to the root itself', async () => {
+    listDirectory.mockResolvedValue(info({ files: [entry('deep.pdf')], folders: [] }))
+    const store = useResourcesStore()
+    await store.init()
+
+    await store.openPath('/deep.pdf')
+
+    expect(listDirectory).toHaveBeenCalledTimes(1)
+  })
+
+  // A child node's path has no trailing slash — only FileInfo.path does — so a
+  // folder is found in its parent's listing, at '/Books' rather than '/Books/'.
+  // Expanding ancestors is what makes a nested folder reveal in the tree; a
+  // folder at the root has none and is already visible.
+  it('reveals a nested starred folder by expanding and loading its ancestors', async () => {
+    listDirectory.mockImplementation(async (path: string) => {
+      if (path === '/') return info({ path: '/', folders: [entry('Books', { type: 'directory' })] })
+      if (path === '/Books/')
+        return info({ path: '/Books/', name: 'Books', folders: [entry('Table', { type: 'directory' })] })
+      return info({ path: '/Books/Table/', name: 'Table', folders: [] })
+    })
+    const store = useResourcesStore()
+    await store.init()
+
+    const result = await store.openPath('/Books/Table')
+
+    expect(result).toEqual({ ok: true })
+    expect(store.expanded['/Books/']).toBe(true)
+    expect(store.selected?.kind).toBe('folder')
+  })
+
+  it('selects a root-level folder without expanding anything', async () => {
+    listDirectory.mockResolvedValue(
+      info({ path: '/', folders: [entry('Books', { type: 'directory' })], files: [] }),
+    )
+    const store = useResourcesStore()
+    await store.init()
+
+    const result = await store.openPath('/Books')
+
+    expect(result).toEqual({ ok: true })
+    expect(store.selected?.kind).toBe('folder')
+    expect(store.expanded).toEqual({})
+    expect(listDirectory).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not collapse a folder that is already open', async () => {
+    listDirectory.mockImplementation(async (path: string) =>
+      path === '/'
+        ? info({ path: '/', folders: [entry('Books', { type: 'directory' })], files: [] })
+        : info({ path: '/Books/', name: 'Books', folders: [] }),
+    )
+    const store = useResourcesStore()
+    await store.init()
+    await store.toggle('/Books')
+
+    await store.openPath('/Books')
+
+    expect(store.expanded['/Books']).toBe(true)
+    expect(listDirectory).toHaveBeenCalledTimes(2)
+  })
+
+  // The API's message is already user-presentable; "no longer here" would be a
+  // lie about a permissions problem.
+  it('reports the API error when the parent folder cannot be read', async () => {
+    listDirectory.mockImplementation(async (path: string) => {
+      if (path === '/') return info({ path: '/', folders: [], files: [] })
+      throw new ApiError('Forbidden (access denied)', 403)
+    })
+    const store = useResourcesStore()
+    await store.init()
+
+    const result = await store.openPath('/Locked/deep.pdf')
+
+    expect(result).toEqual({ ok: false, error: 'Forbidden (access denied)' })
+  })
+
+  it('reports a deleted file without pretending it loaded', async () => {
+    listDirectory.mockResolvedValue(info({ files: [], folders: [] }))
+    const store = useResourcesStore()
+    await store.init()
+
+    const result = await store.openPath('/gone.pdf')
+
+    expect(result.ok).toBe(false)
+  })
 })

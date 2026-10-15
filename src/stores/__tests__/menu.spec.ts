@@ -29,4 +29,13 @@ describe('menu store', () => {
     expect(store.drawerOpen).toBe(false)
     expect(store.collapsed).toBe(true)
   })
+
+  // A menu item with no `to` renders disabled, so a finished feature must ship
+  // its route. Trash is gone: nothing here may delete a file.
+  it('routes every item and has no Trash', () => {
+    const { items } = useMenuStore()
+
+    expect(items.map((i) => i.id)).toEqual(['files', 'recent', 'starred', 'settings'])
+    expect(items.every((i) => typeof i.to === 'string')).toBe(true)
+  })
 })
