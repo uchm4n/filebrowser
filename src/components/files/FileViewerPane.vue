@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import {
-  archivePlugin,
+  // archivePlugin,
   audioPlugin,
   epubPlugin,
   imagePlugin,
@@ -42,7 +42,7 @@ const plugins = [
   pdfPlugin({ workerSrc: sameOriginPath(pdfWorkerSrc) }),
   officePlugin(),
   imagePlugin(),
-  archivePlugin(),
+  // archivePlugin(),
   textPlugin(),
 ]
 </script>
